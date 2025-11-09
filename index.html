@@ -11,10 +11,11 @@ body {
   background: #0d0d0d;
   color: #fff;
   margin: 0;
+  padding-bottom: 200px;
 }
 .container {
   display: flex;
-  height: 100vh;
+  height: calc(100vh - 200px);
 }
 .sidebar {
   width: 300px;
@@ -74,13 +75,9 @@ button {
   margin-top: 5px;
 }
 button:hover { background-color: #9b59b6; }
-#wishlist {
-  margin-top: 10px;
-  max-height: 150px;
-  overflow-y: auto;
-  border: 1px solid #9b59b6;
-  padding: 10px;
-  border-radius: 8px;
+button:disabled {
+  background-color: #555;
+  cursor: not-allowed;
 }
 #radarChart { margin-top: 10px; }
 .carte a {
@@ -99,6 +96,70 @@ button:hover { background-color: #9b59b6; }
   gap: 8px;
   margin-top: 8px;
 }
+.quiz-navigation {
+  display: flex;
+  gap: 10px;
+  margin-top: 15px;
+  justify-content: space-between;
+}
+.quiz-progress {
+  text-align: center;
+  color: #9b59b6;
+  font-size: 14px;
+  margin-top: 10px;
+}
+
+/* Barre de sélection en bas */
+.wishlist-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #2c003e;
+  border-top: 2px solid #8e44ad;
+  padding: 15px 20px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  box-shadow: 0 -3px 10px rgba(0,0,0,0.5);
+  z-index: 1000;
+  max-height: 180px;
+  overflow: hidden;
+}
+.wishlist-bar h3 {
+  margin: 0;
+  white-space: nowrap;
+  min-width: 120px;
+}
+.wishlist-content {
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 140px;
+}
+.wishlist-items {
+  display: flex;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+.wishlist-item {
+  background: #1a1a1a;
+  padding: 10px 15px;
+  border-radius: 8px;
+  white-space: nowrap;
+  border: 1px solid #8e44ad;
+}
+.wishlist-actions {
+  display: flex;
+  gap: 10px;
+  flex-direction: column;
+}
+.wishlist-actions button {
+  margin: 0;
+  white-space: nowrap;
+  font-size: 12px;
+  padding: 8px 12px;
+}
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -112,14 +173,14 @@ button:hover { background-color: #9b59b6; }
   <div class="sidebar">
     <h2>Diagnostic rapide</h2>
     <div id="quiz-container"></div>
-    <canvas id="radarChart" width="300" height="300"></canvas>
+    <div class="quiz-navigation">
+      <button id="btnPrev" disabled>Précédent</button>
+      <button id="btnNext">Suivant</button>
+    </div>
+    <div class="quiz-progress" id="quizProgress"></div>
+    <canvas id="radarChart" width="300" height="300" style="display:none;"></canvas>
     <div id="synthese"></div>
-    <button id="btnFiltrer">Afficher offres correspondant à mon profil</button>
-
-    <h3>Ma sélection</h3>
-    <div id="wishlist"></div>
-    <button id="btnExportPDF">Télécharger ma sélection (PDF)</button>
-    <button id="btnViderWishlist">Vider ma sélection</button>
+    <button id="btnFiltrer" style="display:none;">Afficher offres correspondant à mon profil</button>
   </div>
 
   <!-- Main content -->
@@ -149,11 +210,24 @@ button:hover { background-color: #9b59b6; }
 
 </div>
 
+<!-- Barre de sélection en bas -->
+<div class="wishlist-bar">
+  <h3>Ma sélection</h3>
+  <div class="wishlist-content">
+    <div class="wishlist-items" id="wishlist"></div>
+  </div>
+  <div class="wishlist-actions">
+    <button id="btnExportPDF">📥 Télécharger PDF</button>
+    <button id="btnViderWishlist">🗑️ Vider</button>
+  </div>
+</div>
+
 <script>
 let data = { ponctuels: [], stables: [], outils: [] };
 let answers = {};
 let radarChart = null;
 let wishlist = [];
+let currentQuestionIndex = 0;
 
 const quizQuestions = [
   {question:"Où en êtes-vous de votre projet aujourd'hui ?", options:["Je n'ai qu'une idée","Je teste déjà","Je suis lancé","Je cherche à grandir"], key:"stade_maturite", type:"single"},
@@ -166,7 +240,7 @@ const quizQuestions = [
   {question:"Où est basé votre projet ?", options:["National","Régional","Local","International"], key:"territoire", type:"single"}
 ];
 
-// Données d'exemple (à remplacer par votre fichier data.json)
+// Données d'exemple
 const dataExemple = {
   ponctuels: [
     {
@@ -241,42 +315,86 @@ function afficherOffres(offresAff) {
 }
 
 function afficherQuiz() {
+  afficherQuestion(currentQuestionIndex);
+  updateQuizProgress();
+}
+
+function afficherQuestion(index) {
   const container = document.getElementById("quiz-container");
   container.innerHTML = "";
   
-  quizQuestions.forEach(q => {
-    const qDiv = document.createElement("div");
-    qDiv.className = "quiz-question";
-    const html = `<p><strong>${q.question}</strong></p><div class="quiz-options"></div>`;
-    qDiv.innerHTML = html;
-    const optionsDiv = qDiv.querySelector(".quiz-options");
+  if (index >= quizQuestions.length) {
+    // Fin du quiz
+    genererSynthese();
+    document.getElementById("radarChart").style.display = "block";
+    document.getElementById("btnFiltrer").style.display = "block";
+    document.getElementById("btnNext").style.display = "none";
+    document.getElementById("btnPrev").style.display = "none";
+    document.getElementById("quizProgress").innerHTML = "<strong>✅ Quiz terminé !</strong>";
+    return;
+  }
+  
+  const q = quizQuestions[index];
+  const qDiv = document.createElement("div");
+  qDiv.className = "quiz-question";
+  const html = `<p><strong>${q.question}</strong></p>
+                ${q.type === "multi" ? "<small style='color:#9b59b6;'>(Plusieurs réponses possibles)</small>" : ""}
+                <div class="quiz-options"></div>`;
+  qDiv.innerHTML = html;
+  const optionsDiv = qDiv.querySelector(".quiz-options");
+  
+  q.options.forEach(opt => {
+    const optDiv = document.createElement("div");
+    optDiv.className = "quiz-option";
+    optDiv.innerText = opt;
+    optDiv.dataset.value = opt;
     
-    q.options.forEach(opt => {
-      const optDiv = document.createElement("div");
-      optDiv.className = "quiz-option";
-      optDiv.innerText = opt;
-      optDiv.dataset.value = opt;
-      optDiv.onclick = () => {
-        if (q.type === "single") {
-          answers[q.key] = [opt];
-          Array.from(optionsDiv.children).forEach(c => c.classList.remove("selected"));
-          optDiv.classList.add("selected");
+    // Restaurer la sélection si elle existe
+    if (answers[q.key] && answers[q.key].includes(opt)) {
+      optDiv.classList.add("selected");
+    }
+    
+    optDiv.onclick = () => {
+      if (q.type === "single") {
+        answers[q.key] = [opt];
+        Array.from(optionsDiv.children).forEach(c => c.classList.remove("selected"));
+        optDiv.classList.add("selected");
+      } else {
+        answers[q.key] = answers[q.key] || [];
+        if (answers[q.key].includes(opt)) {
+          answers[q.key] = answers[q.key].filter(x => x !== opt);
+          optDiv.classList.remove("selected");
         } else {
-          answers[q.key] = answers[q.key] || [];
-          if (answers[q.key].includes(opt)) {
-            answers[q.key] = answers[q.key].filter(x => x !== opt);
-            optDiv.classList.remove("selected");
-          } else {
-            answers[q.key].push(opt);
-            optDiv.classList.add("selected");
-          }
+          answers[q.key].push(opt);
+          optDiv.classList.add("selected");
         }
-      };
-      optionsDiv.appendChild(optDiv);
-    });
-    container.appendChild(qDiv);
+      }
+    };
+    optionsDiv.appendChild(optDiv);
   });
+  container.appendChild(qDiv);
+  
+  // Gérer les boutons de navigation
+  document.getElementById("btnPrev").disabled = (index === 0);
+  document.getElementById("btnNext").innerText = (index === quizQuestions.length - 1) ? "Terminer" : "Suivant";
 }
+
+function updateQuizProgress() {
+  const progress = document.getElementById("quizProgress");
+  progress.innerHTML = `Question ${currentQuestionIndex + 1} / ${quizQuestions.length}`;
+}
+
+document.getElementById("btnNext").addEventListener("click", () => {
+  currentQuestionIndex++;
+  afficherQuestion(currentQuestionIndex);
+  updateQuizProgress();
+});
+
+document.getElementById("btnPrev").addEventListener("click", () => {
+  currentQuestionIndex--;
+  afficherQuestion(currentQuestionIndex);
+  updateQuizProgress();
+});
 
 function genererSynthese() {
   let texte = "<h4>Synthèse rapide :</h4><ul>";
@@ -327,7 +445,6 @@ function filtrerOffres() {
 }
 
 document.getElementById("btnFiltrer").addEventListener("click", () => {
-  genererSynthese();
   const filtres = filtrerOffres();
   afficherOffres(filtres);
 });
@@ -346,14 +463,14 @@ function afficherWishlist() {
   container.innerHTML = "";
   
   if (wishlist.length === 0) {
-    container.innerHTML = "<p>Aucune offre sélectionnée</p>";
+    container.innerHTML = "<p style='color:#999;'>Aucune offre sélectionnée</p>";
     return;
   }
   
   wishlist.forEach(o => {
     const div = document.createElement("div");
+    div.className = "wishlist-item";
     div.innerHTML = `<strong>${o.title}</strong>${o.deadline ? ` - ${o.deadline}` : ""}`;
-    div.style.marginBottom = "5px";
     container.appendChild(div);
   });
 }
