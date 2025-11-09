@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plateforme Appels à Projets V4</title>
+
+<style>
+body {
+  font-family: 'Segoe UI', sans-serif;
+  background: #0d0d0d;
+  color: #fff;
+  margin: 0;
+}
+
+.container {
+  display: flex;
+  height: 100vh;
+  gap: 20px;
+  padding: 20px;
+}
+
+.sidebar {
+  flex: 1;
+  background: #2c003e;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.offres {
+  flex: 2;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+  overflow-y: auto;
+}
+
+.carte {
+  background: #1a1a1a;
+  border-radius: 12px;
+  padding: 15px;
+  box-shadow: 0 3px 6px rgba(0,0,0,0.3);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.carte:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 6px 12px rgba(142,68,173,0.7);
+}
+
+button {
+  padding: 10px 15px;
+  border: none;
+  border-radius: 8px;
+  background-color: #8e44ad;
+  color: white;
+  cursor: pointer;
+  margin-top: 5px;
+}
+
+button:hover {
+  background-color: #9b59b6;
+}
+
+select, input[type="text"], input[type="checkbox"] {
+  width: 100%;
+  margin: 10px 0;
+  padding: 5px;
+  border-radius: 6px;
+  border: none;
+}
+
+#wishlist {
+  margin-top: 10px;
+  max-height: 150px;
+  overflow-y: auto;
+  border: 1px solid #9b59b6;
+  padding: 10px;
+  border-radius: 8px;
+}
+
+#radarChart {
+  margin-top: 10px;
+}
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+
+<body>
+<div class="container">
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <h2>Diagnostic rapide</h2>
+    <div id="quiz-container">
+      <div id="question"></div>
+      <select id="reponse" multiple></select>
+      <button id="prevBtn">Précédent</button>
+      <button id="nextBtn">Suivant</button>
+      <div id="progress"></div>
+    </div>
+
+    <canvas id="radarChart" width="300" height="300"></canvas>
+    <div id="synthese"></div>
+
+    <button id="btnFiltrer">Afficher offres correspondant à mon profil</button>
+
+    <h3>Recherche & filtres</h3>
+    <input type="text" id="searchInput" placeholder="Rechercher par mots-clés...">
+    <label><input type="checkbox" class="filterTag" value="Financement"> Financement</label>
+    <label><input type="checkbox" class="filterTag" value="Accompagnement"> Accompagnement</label>
+    <label><input type="checkbox" class="filterTag" value="Outils"> Outils</label>
+    <button id="btnApplySearch">Appliquer filtres</button>
+
+    <h3>Ma sélection</h3>
+    <div id="wishlist"></div>
+    <button id="btnExportPDF">Télécharger ma sélection (PDF)</button>
+    <button id="btnViderWishlist">Vider ma sélection</button>
+  </div>
+
+  <!-- Offres -->
+  <div class="offres" id="offres"></div>
+
+</div>
+
+<script>
+let data = {};
+let currentQuestion = 0;
+let answers = {};
+let radarChart;
+let wishlist = [];
+
+const quizQuestions = [
+  {question:"Où en êtes-vous de votre projet aujourd’hui ?", options:["Je n’ai qu’une idée","Je teste déjà","Je suis lancé","Je cherche à grandir"], key:"stade_maturite", type:"single"},
+  {question:"Quel est votre principal besoin aujourd’hui ?", options:["Financement","Accompagnement","Outils","Ressources humaines","Réseau","Autre"], key:"type_besoin", type:"multi"},
+  {question:"Quelle est la nature principale de votre projet ?", options:["ESS","Tech","Culture","Éducation","Écologie","Inclusion","Autre"], key:"nature_projet", type:"single"},
+  {question:"Sous quelle forme existe votre projet aujourd’hui ?", options:["Aucune structure","Association","Entreprise","Coopérative","Autre"], key:"niveau_structuration", type:"single"},
+  {question:"Quand avez-vous besoin d’une solution concrète ?", options:["Dès maintenant","D’ici 1 mois","D’ici 3 mois","Plus tard"], key:"echeance", type:"single"},
+  {question:"Quel est votre objectif principal pour les 6 prochains mois ?", options:["Tester une idée","Trouver un financement","Structurer l’équipe","Lancer le projet","Développer l’activité"], key:"objectif", type:"single"},
+  {question:"Votre projet est-il déjà financé ou soutenu ?", options:["Oui","Non"], key:"deja_finance", type:"single"},
+  {question:"Où est basé votre projet ?", options:["National","Régional","Local","International"], key:"territoire", type:"single"}
+];
+
+async function chargerData() {
+  const response = await fetch("data.json");
+  data = await response.json();
+  afficherOffres([...data.ponctuels, ...data.stables]);
+}
+
+function afficherOffres(offresAff) {
+  const container = document.getElementById("offres");
+  container.innerHTML = "";
+  offresAff.forEach(o => {
+    const div = document.createElement("div");
+    div.className = "carte";
+    div.innerHTML = `<h3>${o.title}</h3>
+                     ${o.deadline ? `<p>Deadline: ${o.deadline}</p>` : ""}
+                     ${o.description ? `<p>${o.description}</p>` : ""}
+                     <p>Tags: ${o.tags.join(", ")}</p>
+                     <a href="${o.url}" target="_blank">Voir plus</a>
+                     <button onclick="ajouterWishlist('${o.title}')">Ajouter à ma sélection</button>`;
+    container.appendChild(div);
+  });
+}
+
+// --- Quiz ---
+function showQuestion() {
+  const q = quizQuestions[currentQuestion];
+  document.getElementById("question").innerText = `Q${currentQuestion+1}: ${q.question}`;
+  const select = document.getElementById("reponse");
+  select.innerHTML = "";
+  q.options.forEach(o => {
+    const optionEl = document.createElement("option");
+    optionEl.value = o;
+    optionEl.innerText = o;
+    if(answers[q.key] && answers[q.key].includes(o)) optionEl.selected = true;
+    select.appendChild(optionEl);
+  });
+  select.multiple = q.type==="multi";
+  document.getElementById("progress").innerText = `Question ${currentQuestion+1} sur ${quizQuestions.length}`;
+}
+
+document.getElementById("nextBtn").addEventListener("click", ()=>{
+  saveAnswer();
+  if(currentQuestion < quizQuestions.length-1){
+    currentQuestion++;
+    showQuestion();
+  } else {
+    genererSynthese();
+  }
+});
+
+document.getElementById("prevBtn").addEventListener("click", ()=>{
+  saveAnswer();
+  if(currentQuestion > 0){
+    currentQuestion--;
+    showQuestion();
+  }
+});
+
+function saveAnswer(){
+  const q = quizQuestions[currentQuestion];
+  const select = document.getElementById("reponse");
+  answers[q.key] = Array.from(select.selectedOptions).map(o=>o.value);
+}
+
+function genererSynthese(){
+  let texte = "<h4>Synthèse rapide :</h4><ul>";
+  for(let k in answers){
+    texte+=`<li>${k}: ${answers[k].join(", ")}</li>`;
+  }
+  texte+="</ul>";
+  document.getElementById("synthese").innerHTML=texte;
+  afficherRadar();
+}
+
+function afficherRadar(){
+  const axes = ["stade_maturite","type_besoin","nature_projet","niveau_structuration","echeance"];
+  const valeurs = axes.map(a => answers[a] ? answers[a].length*2 : 0);
+  const ctx = document.getElementById('radarChart').getContext('2d');
+  const dataRadar = {
+    labels: axes,
+    datasets:[{label:"Diagnostic projet",data:valeurs,fill:true,backgroundColor:"rgba(142,68,173,0.2)",borderColor:"rgba(142,68,173,1)",pointBackgroundColor:"rgba(142,68,173,1)"}]
+  };
+  if(radarChart) radarChart.destroy();
+  radarChart = new Chart(ctx,{type:'radar',data:dataRadar});
+}
+
+// --- Filtrage quiz ---
+function filtrerOffres(){
+  const all = [...data.ponctuels,...data.stables];
+  const filtres = [];
+  for(let k in answers){
+    answers[k].forEach(v=>filtres.push(`${k}:${v}`));
+  }
+  return all.filter(o=>o.tags.some(t=>filtres.includes(t)));
+}
+
+document.getElementById("btnFiltrer").addEventListener("click", ()=>{
+  const filtres = filtrerOffres();
+  afficherOffres(filtres);
+});
+
+// --- Wishlist ---
+function ajouterWishlist(title){
+  const all = [...data.ponctuels,...data.stables];
+  const o = all.find(x=>x.title===title);
+  if(!wishlist.includes(o)) wishlist.push(o);
+  afficherWishlist();
+}
+
+function afficherWishlist(){
+  const container = document.getElementById("wishlist");
+  container.innerHTML="";
+  wishlist.forEach(o=>{
+    const div = document.createElement("div");
+    div.innerHTML=`<strong>${o.title}</strong>${o.deadline?` - ${o.deadline}`:""}`;
+    container.appendChild(div);
+  });
+}
+
+function viderWishlist(){
+  wishlist=[];
+  afficherWishlist();
+}
+
+function exportPDF(){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  let y = 10;
+  doc.setFontSize(14);
+  doc.text("Ma sélection d'offres",10,y);
+  y+=10;
+  wishlist.forEach(o=>{
+    doc.setFontSize(12);
+    doc.text(`- ${o.title}${o.deadline?` (${o.deadline})`:''} - ${o.url}`,10,y);
+    y+=10;
+  });
+  doc.save("wishlist.pdf");
+}
+
+document.getElementById("btnExportPDF").addEventListener("click",exportPDF);
+document.getElementById("btnViderWishlist").addEventListener("click",viderWishlist);
+
+// --- Recherche et filtres ---
+document.getElementById("btnApplySearch").addEventListener("click", ()=>{
+  const searchTerm = document.getElementById("searchInput").value.toLowerCase();
+  const checkedTags = Array.from(document.querySelectorAll(".filterTag:checked")).map(c=>c.value);
+  const all = [...data.ponctuels,...data.stables];
+  const filtered = all.filter(o=>{
+    const textMatch = o.title.toLowerCase().includes(searchTerm) || (o.description && o.description.toLowerCase().includes(searchTerm));
+    const tagMatch = checkedTags.length===0 || o.tags.some(t=>checkedTags.includes(t));
+    return textMatch && tagMatch;
+  });
+  afficherOffres(filtered);
+});
+
+// --- Initialisation ---
+window.onload=()=>{
+  chargerData();
+  showQuestion();
+};
+</script>
+
+</body>
+</html>
