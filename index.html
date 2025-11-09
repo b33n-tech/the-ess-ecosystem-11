@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Plateforme Appels à Projets V4.2</title>
+<title>Plateforme Appels à Projets V4.3</title>
 
 <style>
 body {
@@ -12,33 +12,42 @@ body {
   color: #fff;
   margin: 0;
 }
-
 .container {
   display: flex;
   height: 100vh;
-  gap: 20px;
-  padding: 20px;
 }
-
 .sidebar {
-  flex: 1;
+  width: 300px;
   background: #2c003e;
   padding: 20px;
-  border-radius: 12px;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+  border-right: 2px solid #8e44ad;
 }
-
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  overflow-y: auto;
+}
+.top-bar {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 15px;
+}
+.top-bar input, .top-bar select, .top-bar button {
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: none;
+}
 .offres {
-  flex: 2;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 20px;
-  overflow-y: auto;
 }
-
 .carte, .quiz-option {
   background: #1a1a1a;
   border-radius: 12px;
@@ -47,17 +56,14 @@ body {
   transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
   cursor: pointer;
 }
-
 .carte:hover, .quiz-option:hover {
   transform: translateY(-3px);
   box-shadow: 0 6px 12px rgba(142,68,173,0.7);
 }
-
 .quiz-option.selected {
   background-color: #8e44ad;
   color: #fff;
 }
-
 button {
   padding: 10px 15px;
   border: none;
@@ -67,11 +73,7 @@ button {
   cursor: pointer;
   margin-top: 5px;
 }
-
-button:hover {
-  background-color: #9b59b6;
-}
-
+button:hover { background-color: #9b59b6; }
 #wishlist {
   margin-top: 10px;
   max-height: 150px;
@@ -80,17 +82,22 @@ button:hover {
   padding: 10px;
   border-radius: 8px;
 }
-
-#radarChart {
-  margin-top: 10px;
+#radarChart { margin-top: 10px; }
+.carte a {
+  color: #9b59b6;
+  text-decoration: none;
 }
-
-input[type="text"], input[type="checkbox"] {
-  width: 100%;
-  margin: 10px 0;
-  padding: 5px;
-  border-radius: 6px;
-  border: none;
+.carte a:hover {
+  color: #8e44ad;
+}
+.quiz-question {
+  margin-bottom: 20px;
+}
+.quiz-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
 }
 </style>
 
@@ -109,89 +116,155 @@ input[type="text"], input[type="checkbox"] {
     <div id="synthese"></div>
     <button id="btnFiltrer">Afficher offres correspondant à mon profil</button>
 
-    <h3>Recherche & filtres</h3>
-    <input type="text" id="searchInput" placeholder="Rechercher par mots-clés...">
-    <label><input type="checkbox" class="filterTag" value="Financement"> Financement</label>
-    <label><input type="checkbox" class="filterTag" value="Accompagnement"> Accompagnement</label>
-    <label><input type="checkbox" class="filterTag" value="Outils"> Outils</label>
-    <button id="btnApplySearch">Appliquer filtres</button>
-
     <h3>Ma sélection</h3>
     <div id="wishlist"></div>
     <button id="btnExportPDF">Télécharger ma sélection (PDF)</button>
     <button id="btnViderWishlist">Vider ma sélection</button>
   </div>
 
-  <!-- Offres -->
-  <div class="offres" id="offres"></div>
+  <!-- Main content -->
+  <div class="main">
+    <div class="top-bar">
+      <input type="text" id="searchInput" placeholder="Rechercher par mots-clés...">
+      <select id="filterRegion">
+        <option value="">Toutes les régions</option>
+        <option value="Grand Est">Grand Est</option>
+        <option value="Auvergne Rhône-Alpes">Auvergne Rhône-Alpes</option>
+        <option value="Île-de-France">Île-de-France</option>
+      </select>
+      <select id="filterType">
+        <option value="">Tous les types de besoin</option>
+        <option value="Financement">Financement</option>
+        <option value="Accompagnement">Accompagnement</option>
+        <option value="Outils">Outils</option>
+        <option value="Ressources humaines">Ressources humaines</option>
+        <option value="Réseau">Réseau</option>
+        <option value="Autre">Autre</option>
+      </select>
+      <button id="btnApplySearch">Appliquer filtres</button>
+    </div>
+
+    <div class="offres" id="offres"></div>
+  </div>
 
 </div>
 
 <script>
-let data = {};
+let data = { ponctuels: [], stables: [], outils: [] };
 let answers = {};
-let radarChart;
+let radarChart = null;
 let wishlist = [];
 
 const quizQuestions = [
-  {question:"Où en êtes-vous de votre projet aujourd’hui ?", options:["Je n’ai qu’une idée","Je teste déjà","Je suis lancé","Je cherche à grandir"], key:"stade_maturite", type:"single"},
-  {question:"Quel est votre principal besoin aujourd’hui ?", options:["Financement","Accompagnement","Outils","Ressources humaines","Réseau","Autre"], key:"type_besoin", type:"multi"},
+  {question:"Où en êtes-vous de votre projet aujourd'hui ?", options:["Je n'ai qu'une idée","Je teste déjà","Je suis lancé","Je cherche à grandir"], key:"stade_maturite", type:"single"},
+  {question:"Quel est votre principal besoin aujourd'hui ?", options:["Financement","Accompagnement","Outils","Ressources humaines","Réseau","Autre"], key:"type_besoin", type:"multi"},
   {question:"Quelle est la nature principale de votre projet ?", options:["ESS","Tech","Culture","Éducation","Écologie","Inclusion","Autre"], key:"nature_projet", type:"single"},
-  {question:"Sous quelle forme existe votre projet aujourd’hui ?", options:["Aucune structure","Association","Entreprise","Coopérative","Autre"], key:"niveau_structuration", type:"single"},
-  {question:"Quand avez-vous besoin d’une solution concrète ?", options:["Dès maintenant","D’ici 1 mois","D’ici 3 mois","Plus tard"], key:"echeance", type:"single"},
-  {question:"Quel est votre objectif principal pour les 6 prochains mois ?", options:["Tester une idée","Trouver un financement","Structurer l’équipe","Lancer le projet","Développer l’activité"], key:"objectif", type:"single"},
+  {question:"Sous quelle forme existe votre projet aujourd'hui ?", options:["Aucune structure","Association","Entreprise","Coopérative","Autre"], key:"niveau_structuration", type:"single"},
+  {question:"Quand avez-vous besoin d'une solution concrète ?", options:["Dès maintenant","D'ici 1 mois","D'ici 3 mois","Plus tard"], key:"echeance", type:"single"},
+  {question:"Quel est votre objectif principal pour les 6 prochains mois ?", options:["Tester une idée","Trouver un financement","Structurer l'équipe","Lancer le projet","Développer l'activité"], key:"objectif", type:"single"},
   {question:"Votre projet est-il déjà financé ou soutenu ?", options:["Oui","Non"], key:"deja_finance", type:"single"},
   {question:"Où est basé votre projet ?", options:["National","Régional","Local","International"], key:"territoire", type:"single"}
 ];
 
+// Données d'exemple (à remplacer par votre fichier data.json)
+const dataExemple = {
+  ponctuels: [
+    {
+      title: "Appel à projets Innovation Sociale",
+      deadline: "31/12/2025",
+      description: "Financement pour projets d'innovation sociale",
+      region: "Grand Est",
+      tags: ["type_besoin:Financement", "nature_projet:ESS", "stade_maturite:Je suis lancé"],
+      url: "https://example.com"
+    }
+  ],
+  stables: [
+    {
+      title: "Programme d'accompagnement startup",
+      description: "Accompagnement personnalisé pour entrepreneurs",
+      region: "Île-de-France",
+      tags: ["type_besoin:Accompagnement", "nature_projet:Tech", "stade_maturite:Je teste déjà"],
+      url: "https://example.com"
+    }
+  ],
+  outils: [
+    {
+      title: "Plateforme de gestion de projet",
+      description: "Outil gratuit de gestion collaborative",
+      tags: ["type_besoin:Outils", "stade_maturite:Je n'ai qu'une idée"],
+      url: "https://example.com"
+    }
+  ]
+};
+
 async function chargerData() {
-  const response = await fetch("data.json");
-  data = await response.json();
-  afficherOffres([...data.ponctuels,...data.stables,...data.outils]);
+  try {
+    const response = await fetch("data.json");
+    if (!response.ok) {
+      console.warn("Fichier data.json introuvable, utilisation des données d'exemple");
+      data = dataExemple;
+    } else {
+      data = await response.json();
+    }
+  } catch (error) {
+    console.warn("Erreur de chargement, utilisation des données d'exemple:", error);
+    data = dataExemple;
+  }
+  
+  afficherOffres([...data.ponctuels, ...data.stables, ...data.outils]);
   afficherQuiz();
 }
 
-// --- Offres ---
 function afficherOffres(offresAff) {
   const container = document.getElementById("offres");
   container.innerHTML = "";
+  
+  if (offresAff.length === 0) {
+    container.innerHTML = "<p>Aucune offre ne correspond à vos critères.</p>";
+    return;
+  }
+  
   offresAff.forEach(o => {
     const div = document.createElement("div");
     div.className = "carte";
-    div.innerHTML = `<h3>${o.title}</h3>
-                     ${o.deadline ? `<p>Deadline: ${o.deadline}</p>` : ""}
-                     ${o.description ? `<p>${o.description}</p>` : ""}
-                     ${o.tags ? `<p>Tags: ${o.tags.join(", ")}</p>` : ""}
-                     ${o.url ? `<a href="${o.url}" target="_blank">Voir plus</a>` : ""}
-                     <button onclick="ajouterWishlist('${o.title}')">Ajouter à ma sélection</button>`;
+    div.innerHTML = `
+      <h3>${o.title}</h3>
+      ${o.deadline ? `<p><strong>Deadline:</strong> ${o.deadline}</p>` : ""}
+      ${o.description ? `<p>${o.description}</p>` : ""}
+      ${o.region ? `<p><strong>Région:</strong> ${o.region}</p>` : ""}
+      ${o.tags ? `<p><strong>Tags:</strong> ${o.tags.join(", ")}</p>` : ""}
+      ${o.url ? `<a href="${o.url}" target="_blank" rel="noopener">Voir plus</a>` : ""}
+      <button onclick="ajouterWishlist('${o.title.replace(/'/g, "\\'")}')">Ajouter à ma sélection</button>
+    `;
     container.appendChild(div);
   });
 }
 
-// --- Quiz en blocs ---
-function afficherQuiz(){
+function afficherQuiz() {
   const container = document.getElementById("quiz-container");
   container.innerHTML = "";
-  quizQuestions.forEach((q,index)=>{
+  
+  quizQuestions.forEach(q => {
     const qDiv = document.createElement("div");
     qDiv.className = "quiz-question";
-    const html = `<p>${q.question}</p><div class="quiz-options"></div>`;
+    const html = `<p><strong>${q.question}</strong></p><div class="quiz-options"></div>`;
     qDiv.innerHTML = html;
     const optionsDiv = qDiv.querySelector(".quiz-options");
-    q.options.forEach(opt=>{
+    
+    q.options.forEach(opt => {
       const optDiv = document.createElement("div");
       optDiv.className = "quiz-option";
       optDiv.innerText = opt;
       optDiv.dataset.value = opt;
-      optDiv.onclick = ()=>{
-        if(q.type==="single"){
-          answers[q.key]=[opt];
-          Array.from(optionsDiv.children).forEach(c=>c.classList.remove("selected"));
+      optDiv.onclick = () => {
+        if (q.type === "single") {
+          answers[q.key] = [opt];
+          Array.from(optionsDiv.children).forEach(c => c.classList.remove("selected"));
           optDiv.classList.add("selected");
         } else {
-          answers[q.key]=answers[q.key]||[];
-          if(answers[q.key].includes(opt)){
-            answers[q.key]=answers[q.key].filter(x=>x!==opt);
+          answers[q.key] = answers[q.key] || [];
+          if (answers[q.key].includes(opt)) {
+            answers[q.key] = answers[q.key].filter(x => x !== opt);
             optDiv.classList.remove("selected");
           } else {
             answers[q.key].push(opt);
@@ -205,104 +278,143 @@ function afficherQuiz(){
   });
 }
 
-// --- Radar et synthèse ---
-function genererSynthese(){
+function genererSynthese() {
   let texte = "<h4>Synthèse rapide :</h4><ul>";
-  for(let k in answers){
-    texte+=`<li>${k}: ${answers[k].join(", ")}</li>`;
+  for (let k in answers) {
+    if (answers[k] && answers[k].length > 0) {
+      texte += `<li><strong>${k}:</strong> ${answers[k].join(", ")}</li>`;
+    }
   }
-  texte+="</ul>";
-  document.getElementById("synthese").innerHTML=texte;
+  texte += "</ul>";
+  document.getElementById("synthese").innerHTML = texte;
   afficherRadar();
 }
 
-function afficherRadar(){
-  const axes = ["stade_maturite","type_besoin","nature_projet","niveau_structuration","echeance"];
-  const valeurs = axes.map(a => answers[a] ? answers[a].length*2 : 0);
+function afficherRadar() {
+  const axes = ["stade_maturite", "type_besoin", "nature_projet", "niveau_structuration", "echeance"];
+  const valeurs = axes.map(a => answers[a] ? answers[a].length * 2 : 0);
   const ctx = document.getElementById('radarChart').getContext('2d');
   const dataRadar = {
     labels: axes,
-    datasets:[{label:"Diagnostic projet",data:valeurs,fill:true,backgroundColor:"rgba(142,68,173,0.2)",borderColor:"rgba(142,68,173,1)",pointBackgroundColor:"rgba(142,68,173,1)"}]
+    datasets: [{
+      label: "Diagnostic projet",
+      data: valeurs,
+      fill: true,
+      backgroundColor: "rgba(142,68,173,0.2)",
+      borderColor: "rgba(142,68,173,1)",
+      pointBackgroundColor: "rgba(142,68,173,1)"
+    }]
   };
-  if(radarChart) radarChart.destroy();
-  radarChart = new Chart(ctx,{type:'radar',data:dataRadar});
+  
+  if (radarChart) radarChart.destroy();
+  radarChart = new Chart(ctx, { type: 'radar', data: dataRadar });
 }
 
-// --- Filtrage quiz ---
-function filtrerOffres(){
-  const all = [...data.ponctuels,...data.stables,...data.outils];
+function filtrerOffres() {
+  const all = [...data.ponctuels, ...data.stables, ...data.outils];
   const filtres = [];
-  for(let k in answers){
-    answers[k].forEach(v=>filtres.push(`${k}:${v}`));
+  for (let k in answers) {
+    if (answers[k]) {
+      answers[k].forEach(v => filtres.push(`${k}:${v}`));
+    }
   }
-  return all.filter(o=>o.tags && o.tags.some(t=>filtres.includes(t)));
+  
+  if (filtres.length === 0) {
+    return all;
+  }
+  
+  return all.filter(o => o.tags && o.tags.some(t => filtres.includes(t)));
 }
 
-document.getElementById("btnFiltrer").addEventListener("click", ()=>{
+document.getElementById("btnFiltrer").addEventListener("click", () => {
   genererSynthese();
   const filtres = filtrerOffres();
   afficherOffres(filtres);
 });
 
-// --- Wishlist ---
-function ajouterWishlist(title){
-  const all = [...data.ponctuels,...data.stables,...data.outils];
-  const o = all.find(x=>x.title===title);
-  if(o && !wishlist.includes(o)) wishlist.push(o);
-  afficherWishlist();
+function ajouterWishlist(title) {
+  const all = [...data.ponctuels, ...data.stables, ...data.outils];
+  const o = all.find(x => x.title === title);
+  if (o && !wishlist.find(w => w.title === title)) {
+    wishlist.push(o);
+    afficherWishlist();
+  }
 }
 
-function afficherWishlist(){
+function afficherWishlist() {
   const container = document.getElementById("wishlist");
-  container.innerHTML="";
-  wishlist.forEach(o=>{
+  container.innerHTML = "";
+  
+  if (wishlist.length === 0) {
+    container.innerHTML = "<p>Aucune offre sélectionnée</p>";
+    return;
+  }
+  
+  wishlist.forEach(o => {
     const div = document.createElement("div");
-    div.innerHTML=`<strong>${o.title}</strong>${o.deadline?` - ${o.deadline}`:""}`;
+    div.innerHTML = `<strong>${o.title}</strong>${o.deadline ? ` - ${o.deadline}` : ""}`;
+    div.style.marginBottom = "5px";
     container.appendChild(div);
   });
 }
 
-function viderWishlist(){
-  wishlist=[];
-  afficherWishlist();
+function viderWishlist() { 
+  wishlist = []; 
+  afficherWishlist(); 
 }
 
-function exportPDF(){
+function exportPDF() {
+  if (wishlist.length === 0) {
+    alert("Votre sélection est vide. Ajoutez des offres avant d'exporter.");
+    return;
+  }
+  
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
   let y = 10;
   doc.setFontSize(14);
-  doc.text("Ma sélection d'offres",10,y);
-  y+=10;
-  wishlist.forEach(o=>{
+  doc.text("Ma sélection d'offres", 10, y);
+  y += 10;
+  
+  wishlist.forEach(o => {
     doc.setFontSize(12);
-    doc.text(`- ${o.title}${o.deadline?` (${o.deadline})`:''} ${o.url?` - ${o.url}`:''}`,10,y);
-    y+=10;
+    const text = `- ${o.title}${o.deadline ? ` (${o.deadline})` : ''}`;
+    doc.text(text, 10, y);
+    y += 7;
+    if (o.url) {
+      doc.setFontSize(10);
+      doc.text(`  ${o.url}`, 10, y);
+      y += 7;
+    }
   });
+  
   doc.save("wishlist.pdf");
 }
 
-document.getElementById("btnExportPDF").addEventListener("click",exportPDF);
-document.getElementById("btnViderWishlist").addEventListener("click",viderWishlist);
+document.getElementById("btnExportPDF").addEventListener("click", exportPDF);
+document.getElementById("btnViderWishlist").addEventListener("click", viderWishlist);
 
-// --- Recherche et filtres ---
-document.getElementById("btnApplySearch").addEventListener("click", ()=>{
+// Recherche + filtres dropdown
+document.getElementById("btnApplySearch").addEventListener("click", () => {
   const searchTerm = document.getElementById("searchInput").value.toLowerCase();
-  const checkedTags = Array.from(document.querySelectorAll(".filterTag:checked")).map(c=>c.value);
-  const all = [...data.ponctuels,...data.stables,...data.outils];
-  const filtered = all.filter(o=>{
-    const textMatch = o.title.toLowerCase().includes(searchTerm) || (o.description && o.description.toLowerCase().includes(searchTerm));
-    const tagMatch = checkedTags.length===0 || (o.tags && o.tags.some(t=>checkedTags.includes(t)));
-    return textMatch && tagMatch;
+  const region = document.getElementById("filterRegion").value;
+  const type = document.getElementById("filterType").value;
+  const all = [...data.ponctuels, ...data.stables, ...data.outils];
+  
+  const filtered = all.filter(o => {
+    let textMatch = o.title.toLowerCase().includes(searchTerm) || 
+                    (o.description && o.description.toLowerCase().includes(searchTerm));
+    let regionMatch = !region || (o.region && o.region === region);
+    let typeMatch = !type || (o.tags && o.tags.some(t => t.includes(`type_besoin:${type}`)));
+    return textMatch && regionMatch && typeMatch;
   });
+  
   afficherOffres(filtered);
 });
 
-// --- Initialisation ---
-window.onload=()=>{
-  chargerData();
+window.onload = () => { 
+  chargerData(); 
 };
 </script>
-
 </body>
 </html>
