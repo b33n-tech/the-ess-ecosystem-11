@@ -1,0 +1,24 @@
+{
+  "ponctuels": [
+    {
+      "title": "Appel à projet A",
+      "deadline": "2025-12-15",
+      "description": "Description courte...",
+      "tags": ["stade_maturite:Je teste déjà","type_besoin:Financement"]
+    }
+  ],
+  "stables": [
+    {
+      "title": "Programme B",
+      "description": "Programme annuel...",
+      "tags": ["stade_maturite:Je suis lancé","type_besoin:Accompagnement"]
+    }
+  ],
+  "outils": [
+    {
+      "title": "Ressource C",
+      "url": "https://exemple.com",
+      "tags": ["type_besoin:Outils"]
+    }
+  ]
+}
