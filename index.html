@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Plateforme Appels à Projets V4</title>
+<title>Plateforme Appels à Projets V4.2</title>
 
 <style>
 body {
@@ -39,17 +39,23 @@ body {
   overflow-y: auto;
 }
 
-.carte {
+.carte, .quiz-option {
   background: #1a1a1a;
   border-radius: 12px;
   padding: 15px;
   box-shadow: 0 3px 6px rgba(0,0,0,0.3);
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
+  cursor: pointer;
 }
 
-.carte:hover {
-  transform: translateY(-5px);
+.carte:hover, .quiz-option:hover {
+  transform: translateY(-3px);
   box-shadow: 0 6px 12px rgba(142,68,173,0.7);
+}
+
+.quiz-option.selected {
+  background-color: #8e44ad;
+  color: #fff;
 }
 
 button {
@@ -66,14 +72,6 @@ button:hover {
   background-color: #9b59b6;
 }
 
-select, input[type="text"], input[type="checkbox"] {
-  width: 100%;
-  margin: 10px 0;
-  padding: 5px;
-  border-radius: 6px;
-  border: none;
-}
-
 #wishlist {
   margin-top: 10px;
   max-height: 150px;
@@ -85,6 +83,14 @@ select, input[type="text"], input[type="checkbox"] {
 
 #radarChart {
   margin-top: 10px;
+}
+
+input[type="text"], input[type="checkbox"] {
+  width: 100%;
+  margin: 10px 0;
+  padding: 5px;
+  border-radius: 6px;
+  border: none;
 }
 </style>
 
@@ -98,17 +104,9 @@ select, input[type="text"], input[type="checkbox"] {
   <!-- Sidebar -->
   <div class="sidebar">
     <h2>Diagnostic rapide</h2>
-    <div id="quiz-container">
-      <div id="question"></div>
-      <select id="reponse" multiple></select>
-      <button id="prevBtn">Précédent</button>
-      <button id="nextBtn">Suivant</button>
-      <div id="progress"></div>
-    </div>
-
+    <div id="quiz-container"></div>
     <canvas id="radarChart" width="300" height="300"></canvas>
     <div id="synthese"></div>
-
     <button id="btnFiltrer">Afficher offres correspondant à mon profil</button>
 
     <h3>Recherche & filtres</h3>
@@ -131,7 +129,6 @@ select, input[type="text"], input[type="checkbox"] {
 
 <script>
 let data = {};
-let currentQuestion = 0;
 let answers = {};
 let radarChart;
 let wishlist = [];
@@ -150,9 +147,11 @@ const quizQuestions = [
 async function chargerData() {
   const response = await fetch("data.json");
   data = await response.json();
-  afficherOffres([...data.ponctuels, ...data.stables]);
+  afficherOffres([...data.ponctuels,...data.stables,...data.outils]);
+  afficherQuiz();
 }
 
+// --- Offres ---
 function afficherOffres(offresAff) {
   const container = document.getElementById("offres");
   container.innerHTML = "";
@@ -162,54 +161,51 @@ function afficherOffres(offresAff) {
     div.innerHTML = `<h3>${o.title}</h3>
                      ${o.deadline ? `<p>Deadline: ${o.deadline}</p>` : ""}
                      ${o.description ? `<p>${o.description}</p>` : ""}
-                     <p>Tags: ${o.tags.join(", ")}</p>
-                     <a href="${o.url}" target="_blank">Voir plus</a>
+                     ${o.tags ? `<p>Tags: ${o.tags.join(", ")}</p>` : ""}
+                     ${o.url ? `<a href="${o.url}" target="_blank">Voir plus</a>` : ""}
                      <button onclick="ajouterWishlist('${o.title}')">Ajouter à ma sélection</button>`;
     container.appendChild(div);
   });
 }
 
-// --- Quiz ---
-function showQuestion() {
-  const q = quizQuestions[currentQuestion];
-  document.getElementById("question").innerText = `Q${currentQuestion+1}: ${q.question}`;
-  const select = document.getElementById("reponse");
-  select.innerHTML = "";
-  q.options.forEach(o => {
-    const optionEl = document.createElement("option");
-    optionEl.value = o;
-    optionEl.innerText = o;
-    if(answers[q.key] && answers[q.key].includes(o)) optionEl.selected = true;
-    select.appendChild(optionEl);
+// --- Quiz en blocs ---
+function afficherQuiz(){
+  const container = document.getElementById("quiz-container");
+  container.innerHTML = "";
+  quizQuestions.forEach((q,index)=>{
+    const qDiv = document.createElement("div");
+    qDiv.className = "quiz-question";
+    const html = `<p>${q.question}</p><div class="quiz-options"></div>`;
+    qDiv.innerHTML = html;
+    const optionsDiv = qDiv.querySelector(".quiz-options");
+    q.options.forEach(opt=>{
+      const optDiv = document.createElement("div");
+      optDiv.className = "quiz-option";
+      optDiv.innerText = opt;
+      optDiv.dataset.value = opt;
+      optDiv.onclick = ()=>{
+        if(q.type==="single"){
+          answers[q.key]=[opt];
+          Array.from(optionsDiv.children).forEach(c=>c.classList.remove("selected"));
+          optDiv.classList.add("selected");
+        } else {
+          answers[q.key]=answers[q.key]||[];
+          if(answers[q.key].includes(opt)){
+            answers[q.key]=answers[q.key].filter(x=>x!==opt);
+            optDiv.classList.remove("selected");
+          } else {
+            answers[q.key].push(opt);
+            optDiv.classList.add("selected");
+          }
+        }
+      };
+      optionsDiv.appendChild(optDiv);
+    });
+    container.appendChild(qDiv);
   });
-  select.multiple = q.type==="multi";
-  document.getElementById("progress").innerText = `Question ${currentQuestion+1} sur ${quizQuestions.length}`;
 }
 
-document.getElementById("nextBtn").addEventListener("click", ()=>{
-  saveAnswer();
-  if(currentQuestion < quizQuestions.length-1){
-    currentQuestion++;
-    showQuestion();
-  } else {
-    genererSynthese();
-  }
-});
-
-document.getElementById("prevBtn").addEventListener("click", ()=>{
-  saveAnswer();
-  if(currentQuestion > 0){
-    currentQuestion--;
-    showQuestion();
-  }
-});
-
-function saveAnswer(){
-  const q = quizQuestions[currentQuestion];
-  const select = document.getElementById("reponse");
-  answers[q.key] = Array.from(select.selectedOptions).map(o=>o.value);
-}
-
+// --- Radar et synthèse ---
 function genererSynthese(){
   let texte = "<h4>Synthèse rapide :</h4><ul>";
   for(let k in answers){
@@ -234,24 +230,25 @@ function afficherRadar(){
 
 // --- Filtrage quiz ---
 function filtrerOffres(){
-  const all = [...data.ponctuels,...data.stables];
+  const all = [...data.ponctuels,...data.stables,...data.outils];
   const filtres = [];
   for(let k in answers){
     answers[k].forEach(v=>filtres.push(`${k}:${v}`));
   }
-  return all.filter(o=>o.tags.some(t=>filtres.includes(t)));
+  return all.filter(o=>o.tags && o.tags.some(t=>filtres.includes(t)));
 }
 
 document.getElementById("btnFiltrer").addEventListener("click", ()=>{
+  genererSynthese();
   const filtres = filtrerOffres();
   afficherOffres(filtres);
 });
 
 // --- Wishlist ---
 function ajouterWishlist(title){
-  const all = [...data.ponctuels,...data.stables];
+  const all = [...data.ponctuels,...data.stables,...data.outils];
   const o = all.find(x=>x.title===title);
-  if(!wishlist.includes(o)) wishlist.push(o);
+  if(o && !wishlist.includes(o)) wishlist.push(o);
   afficherWishlist();
 }
 
@@ -279,7 +276,7 @@ function exportPDF(){
   y+=10;
   wishlist.forEach(o=>{
     doc.setFontSize(12);
-    doc.text(`- ${o.title}${o.deadline?` (${o.deadline})`:''} - ${o.url}`,10,y);
+    doc.text(`- ${o.title}${o.deadline?` (${o.deadline})`:''} ${o.url?` - ${o.url}`:''}`,10,y);
     y+=10;
   });
   doc.save("wishlist.pdf");
@@ -292,10 +289,10 @@ document.getElementById("btnViderWishlist").addEventListener("click",viderWishli
 document.getElementById("btnApplySearch").addEventListener("click", ()=>{
   const searchTerm = document.getElementById("searchInput").value.toLowerCase();
   const checkedTags = Array.from(document.querySelectorAll(".filterTag:checked")).map(c=>c.value);
-  const all = [...data.ponctuels,...data.stables];
+  const all = [...data.ponctuels,...data.stables,...data.outils];
   const filtered = all.filter(o=>{
     const textMatch = o.title.toLowerCase().includes(searchTerm) || (o.description && o.description.toLowerCase().includes(searchTerm));
-    const tagMatch = checkedTags.length===0 || o.tags.some(t=>checkedTags.includes(t));
+    const tagMatch = checkedTags.length===0 || (o.tags && o.tags.some(t=>checkedTags.includes(t)));
     return textMatch && tagMatch;
   });
   afficherOffres(filtered);
@@ -304,7 +301,6 @@ document.getElementById("btnApplySearch").addEventListener("click", ()=>{
 // --- Initialisation ---
 window.onload=()=>{
   chargerData();
-  showQuestion();
 };
 </script>
 
