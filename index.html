@@ -1,473 +1,132 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Plateforme Appels à Projets</title>
-
-<style>
-:root {
-  --primary: #7C3AED;
-  --primary-dark: #6D28D9;
-  --secondary: #10B981;
-  --background: #0F172A;
-  --surface: #1E293B;
-  --surface-light: #334155;
-  --text: #F8FAFC;
-  --text-muted: #94A3B8;
-  --border: #475569;
-}
-
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  background: var(--background);
-  color: var(--text);
-  line-height: 1.6;
-}
-
-/* Layout principal */
-.app-container {
-  display: grid;
-  grid-template-columns: 380px 1fr;
-  min-height: 100vh;
-  gap: 0;
-}
-
-/* Sidebar redessinée */
-.sidebar {
-  background: var(--surface);
-  border-right: 1px solid var(--border);
-  padding: 24px;
-  overflow-y: auto;
-  position: sticky;
-  top: 0;
-  height: 100vh;
-}
-
-.sidebar-header {
-  text-align: center;
-  margin-bottom: 32px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid var(--border);
-}
-
-.sidebar-header h1 {
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--text);
-  margin-bottom: 8px;
-}
-
-.sidebar-header p {
-  color: var(--text-muted);
-  font-size: 14px;
-}
-
-/* Quiz amélioré */
-.quiz-container {
-  margin-bottom: 24px;
-}
-
-.quiz-progress {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 20px;
-}
-
-.progress-bar {
-  flex: 1;
-  height: 4px;
-  background: var(--surface-light);
-  border-radius: 2px;
-  overflow: hidden;
-  margin: 0 12px;
-}
-
-.progress-fill {
-  height: 100%;
-  background: var(--primary);
-  transition: width 0.3s ease;
-}
-
-.quiz-question {
-  margin-bottom: 20px;
-}
-
-.quiz-question h3 {
-  font-size: 16px;
-  font-weight: 600;
-  margin-bottom: 16px;
-  line-height: 1.5;
-}
-
-.quiz-options {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.quiz-option {
-  padding: 12px 16px;
-  background: var(--surface-light);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 14px;
-}
-
-.quiz-option:hover {
-  border-color: var(--primary);
-  transform: translateY(-1px);
-}
-
-.quiz-option.selected {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: white;
-}
-
-.quiz-navigation {
-  display: flex;
-  gap: 12px;
-  margin-top: 24px;
-}
-
-.btn {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 8px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 14px;
-}
-
-.btn-primary {
-  background: var(--primary);
-  color: white;
-}
-
-.btn-primary:hover {
-  background: var(--primary-dark);
-  transform: translateY(-1px);
-}
-
-.btn-secondary {
-  background: var(--surface-light);
-  color: var(--text);
-  border: 1px solid var(--border);
-}
-
-.btn-secondary:hover {
-  background: var(--border);
-}
-
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  transform: none !important;
-}
-
-/* Contenu principal */
-.main-content {
-  padding: 32px;
-  overflow-y: auto;
-}
-
-.search-section {
-  margin-bottom: 32px;
-}
-
-.search-bar {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 20px;
-  flex-wrap: wrap;
-}
-
-.search-input {
-  flex: 1;
-  min-width: 300px;
-  padding: 12px 16px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--text);
-  font-size: 14px;
-}
-
-.search-input::placeholder {
-  color: var(--text-muted);
-}
-
-.filter-select {
-  padding: 12px 16px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--text);
-  font-size: 14px;
-  min-width: 180px;
-}
-
-/* Grille des offres */
-.offres-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 20px;
-}
-
-.offre-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 20px;
-  transition: all 0.3s ease;
-  position: relative;
-}
-
-.offre-card:hover {
-  transform: translateY(-4px);
-  border-color: var(--primary);
-  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-}
-
-.offre-card h3 {
-  font-size: 16px;
-  font-weight: 600;
-  margin-bottom: 8px;
-  color: var(--text);
-}
-
-.offre-meta {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 12px;
-  flex-wrap: wrap;
-}
-
-.meta-tag {
-  background: var(--surface-light);
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
-.offre-description {
-  color: var(--text-muted);
-  font-size: 14px;
-  margin-bottom: 16px;
-  line-height: 1.5;
-}
-
-.offre-actions {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.btn-icon {
-  background: none;
-  border: none;
-  color: var(--primary);
-  cursor: pointer;
-  padding: 8px;
-  border-radius: 6px;
-  transition: background 0.2s ease;
-}
-
-.btn-icon:hover {
-  background: var(--surface-light);
-}
-
-/* Wishlist minimale */
-.wishlist-mini {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  background: var(--primary);
-  color: white;
-  padding: 12px 20px;
-  border-radius: 50px;
-  cursor: pointer;
-  box-shadow: 0 4px 20px rgba(124, 58, 237, 0.4);
-  transition: all 0.3s ease;
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 500;
-}
-
-.wishlist-mini:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 25px rgba(124, 58, 237, 0.6);
-}
-
-.wishlist-count {
-  background: white;
-  color: var(--primary);
-  border-radius: 50%;
-  width: 20px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-/* États vides */
-.empty-state {
-  text-align: center;
-  padding: 60px 20px;
-  color: var(--text-muted);
-}
-
-.empty-state h3 {
-  font-size: 18px;
-  margin-bottom: 8px;
-  color: var(--text);
-}
-
-.empty-state p {
-  font-size: 14px;
-  max-width: 400px;
-  margin: 0 auto;
-}
-
-/* Responsive */
-@media (max-width: 1024px) {
-  .app-container {
-    grid-template-columns: 1fr;
-  }
-  
-  .sidebar {
-    height: auto;
-    position: static;
-    border-right: none;
-    border-bottom: 1px solid var(--border);
-  }
-}
-</style>
-</head>
-
-<body>
-<div class="app-container">
-  
-  <!-- Sidebar redessinée -->
-  <div class="sidebar">
-    <div class="sidebar-header">
-      <h1>🎯 Diagnostic Projet</h1>
-      <p>Répondez au quiz pour des recommandations personnalisées</p>
-    </div>
-    
-    <div class="quiz-container">
-      <div class="quiz-progress">
-        <span id="currentStep">1</span>
-        <div class="progress-bar">
-          <div class="progress-fill" id="progressFill" style="width: 20%"></div>
-        </div>
-        <span id="totalSteps">5</span>
-      </div>
-      
-      <div class="quiz-question">
-        <h3 id="questionText">Où en êtes-vous de votre projet aujourd'hui ?</h3>
-        <div class="quiz-options" id="quizOptions">
-          <!-- Options générées dynamiquement -->
-        </div>
-      </div>
-      
-      <div class="quiz-navigation">
-        <button class="btn btn-secondary" id="btnPrev" disabled>← Précédent</button>
-        <button class="btn btn-primary" id="btnNext">Suivant →</button>
-      </div>
-    </div>
-    
-    <div id="resultsSection" style="display: none;">
-      <h3 style="margin-bottom: 16px;">🎉 Votre profil est prêt !</h3>
-      <p style="color: var(--text-muted); margin-bottom: 20px; font-size: 14px;">
-        Nous avons identifié les offres qui correspondent à vos besoins.
-      </p>
-      <button class="btn btn-primary" id="btnShowMatches" style="width: 100%;">
-        🔍 Voir les recommandations
-      </button>
-    </div>
-  </div>
-  
-  <!-- Contenu principal -->
-  <div class="main-content">
-    <div class="search-section">
-      <div class="search-bar">
-        <input type="text" class="search-input" placeholder="🔍 Rechercher par mots-clés...">
-        <select class="filter-select" id="filterRegion">
-          <option value="">📍 Toutes les régions</option>
-          <option value="Grand Est">Grand Est</option>
-          <option value="Auvergne Rhône-Alpes">Auvergne Rhône-Alpes</option>
-        </select>
-        <select class="filter-select" id="filterType">
-          <option value="">🎯 Tous les types</option>
-          <option value="Financement">Financement</option>
-          <option value="Accompagnement">Accompagnement</option>
-        </select>
-      </div>
-    </div>
-    
-    <div class="offres-grid" id="offresContainer">
-      <!-- Offres générées dynamiquement -->
-    </div>
-  </div>
-</div>
-
-<!-- Wishlist minimale -->
-<div class="wishlist-mini" id="wishlistMini">
-  <span>Ma sélection</span>
-  <div class="wishlist-count" id="wishlistCount">0</div>
-</div>
-
 <script>
-// Le JavaScript reste globalement le même, mais avec une meilleure intégration UI
-// Je te laisse adapter le JS existant à cette nouvelle structure
+// --- INITIALISATION ---
+let quizQuestions = [
+  {
+    question: "Où en êtes-vous de votre projet aujourd'hui ?",
+    options: ["Je n'ai qu'une idée", "Je teste déjà", "Je suis lancé"]
+  },
+  {
+    question: "Quel type de besoin avez-vous ?",
+    options: ["Financement", "Accompagnement", "Outils"]
+  },
+  {
+    question: "Quel est le secteur de votre projet ?",
+    options: ["ESS", "Tech", "Autre"]
+  }
+];
 
-// Pour l'instant, un exemple basique d'initialisation
-document.addEventListener('DOMContentLoaded', function() {
-  // Initialisation de l'interface
-  updateWishlistCount(0);
-  
-  // Exemple d'offre
-  const offresContainer = document.getElementById('offresContainer');
-  offresContainer.innerHTML = `
+let currentStep = 0;
+let userAnswers = [];
+let offresData = [];
+
+// --- CHARGEMENT DU JSON ---
+async function loadData() {
+  try {
+    const response = await fetch('data.json');
+    const data = await response.json();
+    offresData = [...data.ponctuels, ...data.stables, ...data.outils];
+    renderOffres(offresData); // affichage initial de toutes les offres
+  } catch (err) {
+    console.error("Erreur chargement data.json :", err);
+  }
+}
+
+// --- QUIZ ---
+function renderQuizStep() {
+  const questionObj = quizQuestions[currentStep];
+  document.getElementById('questionText').textContent = questionObj.question;
+  const quizOptions = document.getElementById('quizOptions');
+  quizOptions.innerHTML = questionObj.options.map(opt => `
+    <div class="quiz-option">${opt}</div>
+  `).join('');
+
+  // Ajout des listeners sur les options
+  document.querySelectorAll('.quiz-option').forEach((el, idx) => {
+    el.addEventListener('click', () => {
+      document.querySelectorAll('.quiz-option').forEach(o => o.classList.remove('selected'));
+      el.classList.add('selected');
+      userAnswers[currentStep] = opt = questionObj.options[idx];
+    });
+  });
+
+  // Boutons
+  document.getElementById('btnPrev').disabled = currentStep === 0;
+  document.getElementById('btnNext').textContent = currentStep === quizQuestions.length - 1 ? 'Terminer ✅' : 'Suivant →';
+}
+
+document.getElementById('btnNext').addEventListener('click', () => {
+  if (!userAnswers[currentStep]) return alert("Veuillez sélectionner une option !");
+  if (currentStep < quizQuestions.length - 1) {
+    currentStep++;
+    renderQuizStep();
+  } else {
+    // FIN DU QUIZ
+    document.querySelector('.quiz-container').style.display = 'none';
+    document.getElementById('resultsSection').style.display = 'block';
+    filterOffresByQuiz();
+  }
+});
+
+document.getElementById('btnPrev').addEventListener('click', () => {
+  if (currentStep > 0) {
+    currentStep--;
+    renderQuizStep();
+  }
+});
+
+document.getElementById('btnShowMatches').addEventListener('click', () => {
+  document.querySelector('.main-content').scrollIntoView({ behavior: 'smooth' });
+});
+
+// --- OFFRES ---
+function renderOffres(offres) {
+  const container = document.getElementById('offresContainer');
+  if (offres.length === 0) {
+    container.innerHTML = `<div class="empty-state"><h3>Aucune offre trouvée</h3><p>Essayez de modifier vos critères ou revenir plus tard.</p></div>`;
+    return;
+  }
+  container.innerHTML = offres.map(o => `
     <div class="offre-card">
-      <h3>Appel à Projet Innovation Tech</h3>
+      <h3>${o.title}</h3>
       <div class="offre-meta">
-        <span class="meta-tag">💰 Financement</span>
-        <span class="meta-tag">🚀 Startup</span>
-        <span class="meta-tag">📍 Grand Est</span>
+        ${o.tags.map(t => `<span class="meta-tag">${t.split(':')[1]}</span>`).join('')}
+        ${o.region ? `<span class="meta-tag">📍 ${o.region}</span>` : ''}
       </div>
-      <p class="offre-description">
-        Financement jusqu'à 50k€ pour projets technologiques innovants avec accompagnement personnalisé.
-      </p>
+      <p class="offre-description">${o.description}</p>
       <div class="offre-actions">
-        <a href="#" style="color: var(--primary); text-decoration: none; font-size: 14px;">En savoir plus →</a>
+        <a href="${o.url}" target="_blank" style="color: var(--primary); text-decoration: none; font-size: 14px;">En savoir plus →</a>
         <button class="btn-icon">❤️ Ajouter</button>
       </div>
     </div>
-  `;
-});
+  `).join('');
 
+  // Wishlist boutons
+  document.querySelectorAll('.btn-icon').forEach((btn, idx) => {
+    btn.addEventListener('click', () => {
+      updateWishlistCount(parseInt(document.getElementById('wishlistCount').textContent) + 1);
+    });
+  });
+}
+
+// --- FILTRAGE SELON QUIZ ---
+function filterOffresByQuiz() {
+  let filtered = offresData.filter(offre => {
+    return userAnswers.every(answer => 
+      offre.tags.some(tag => tag.includes(answer))
+    );
+  });
+  renderOffres(filtered);
+}
+
+// --- WISHLIST ---
 function updateWishlistCount(count) {
   document.getElementById('wishlistCount').textContent = count;
 }
-</script>
 
-</body>
-</html>
+// --- INIT ---
+document.addEventListener('DOMContentLoaded', () => {
+  loadData();
+  renderQuizStep();
+  updateWishlistCount(0);
+});
+</script>
